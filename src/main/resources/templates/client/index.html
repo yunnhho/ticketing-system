@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/header :: header}"></head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold">🎫 Concert Ticketing</h1>
+        <p class="lead text-muted">원하는 공연을 선택하고 실시간 예매를 시작하세요.</p>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        <div class="col" th:each="concert : ${concerts}">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold" th:text="${concert.title}">공연 제목</h5>
+                    <p class="card-text text-muted" th:text="${concert.venue}">장소</p>
+                    <button class="btn btn-primary w-100 mt-3"
+                            th:onclick="'startBooking(' + ${concert.id} + ')'">예매하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function startBooking(concertId) {
+        // 배포 환경에서 유저 구분을 위한 랜덤 ID 생성 (이미 있다면 재사용)
+        let userId = localStorage.getItem('ticketing_user_id');
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('ticketing_user_id', userId);
+        }
+        // 대기열로 자동 진입
+        location.href = `/concerts/${concertId}/wait?userId=${userId}`;
+    }
+</script>
+</body>
+</html>

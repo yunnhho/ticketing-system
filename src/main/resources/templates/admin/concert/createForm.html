@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/header :: header}"></head>
+<body>
+<div class="container mt-5" style="max-width: 600px;">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-plus-circle"></i> 신규 공연 등록</h4>
+        </div>
+        <div class="card-body p-4">
+            <form th:action="@{/admin/concerts/new}" th:object="${concertForm}" method="post">
+                <div class="mb-3">
+                    <label class="form-label">공연 제목</label>
+                    <input type="text" th:field="*{title}" class="form-control" placeholder="예: 2026 싸이 흠뻑쇼">
+                    <div class="text-danger" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">공연 장소</label>
+                    <input type="text" th:field="*{venue}" class="form-control" placeholder="예: 잠실 주경기장">
+                    <div class="text-danger" th:if="${#fields.hasErrors('venue')}" th:errors="*{venue}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">총 좌석 수 (자동 생성됨)</label>
+                    <input type="number" th:field="*{totalSeats}" class="form-control">
+                    <div class="text-danger" th:if="${#fields.hasErrors('totalSeats')}" th:errors="*{totalSeats}"></div>
+                </div>
+                <hr>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">공연 및 좌석 등록하기</button>
+                    <a href="/admin/concerts" class="btn btn-light">취소</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

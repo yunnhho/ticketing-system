@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/header :: header}"></head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-2 sidebar">
+            <h4 class="text-center">Admin</h4>
+            <a href="/admin/concerts"><i class="bi bi-music-note-beamed"></i> 공연 관리</a>
+        </nav>
+
+        <main class="col-md-10 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-list-ul"></i> 공연 목록</h2>
+                <a href="/admin/concerts/new" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> 새로운 공연 등록
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>공연 제목</th>
+                            <th>공연 장소</th>
+                            <th>총 좌석수</th>
+                            <th>상태</th>
+                            <th>관리</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="concert : ${concerts}">
+                            <td th:text="${concert.id}">1</td>
+                            <td th:text="${concert.title}" class="fw-bold">공연명</td>
+                            <td th:text="${concert.venue}">서울 올림픽공원</td>
+                            <td><span class="badge bg-info text-dark" th:text="${concert.totalSeats}">100</span></td>
+                            <td><span class="badge bg-success">판매중</span></td>
+                            <td>
+                                <a th:href="@{/admin/concerts/{id}(id=${concert.id})}"
+                                   class="btn btn-sm btn-outline-primary">상세</a>
+
+                                <a th:href="@{/admin/concerts/{id}/edit(id=${concert.id})}"
+                                   class="btn btn-sm btn-outline-secondary">수정</a>
+
+                                <form th:action="@{/admin/concerts/{id}/delete(id=${concert.id})}"
+                                      method="post" style="display: inline;"
+                                      onsubmit="return confirm('정말 삭제하시겠습니까? 관련 좌석 정보가 모두 삭제됩니다.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">삭제</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr th:if="${concerts.isEmpty()}">
+                            <td colspan="6" class="text-center py-5 text-muted">등록된 공연이 없습니다.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/header :: header}"></head>
+<body>
+<div class="container text-center mt-5">
+    <div class="card shadow p-5">
+        <h2 class="mb-4">서비스 접속 대기 중입니다.</h2>
+        <div class="spinner-border text-primary mb-4" role="status" style="width: 3rem; height: 3rem;"></div>
+        <p class="lead">현재 고객님 앞에 <br>
+            <strong id="rankText" class="display-4 text-primary" th:text="${waitingCount}">0</strong> 명 대기 중입니다.</p>
+        <p class="text-muted">잠시만 기다려 주시면 예매 페이지로 자동 이동합니다.</p>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const concertId = [[${concertId}]];
+    const userId = [[${userId}]];
+
+    function checkStatus() {
+    fetch(`/concerts/${concertId}/status?userId=${userId}`)
+        .then(res => {
+            // 서버 응답이 200 OK가 아니거나 내용이 없으면 에러 처리
+            if (!res.ok) throw new Error('네트워크 응답 에러');
+            return res.json();
+        })
+        .then(data => {
+            if (data.isAllowed) {
+                window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
+            } else {
+                document.getElementById('rankText').innerText = data.queueSize;
+            }
+        })
+        .catch(err => {
+            console.error("상태 확인 중 오류:", err);
+            // 에러 발생 시 사용자에게 알림을 주거나 재시도 간격을 조절할 수 있음
+        });
+    }
+    // 3초마다 대기 순번 체크
+    setInterval(checkStatus, 3000);
+</script>
+</body>
+</html>

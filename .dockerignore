@@ -1,0 +1,8 @@
+# 도커 빌드 시 무시할 목록
+mysql_data/
+redis_data/
+build/
+.gradle/
+.git/
+*.sock
+*.log

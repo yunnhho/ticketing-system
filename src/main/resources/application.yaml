@@ -1,0 +1,31 @@
+server:
+  port: 8083
+
+spring:
+  datasource:
+    url: jdbc:mysql://db:3306/ticketing_db?createDatabaseIfNotExist=true&useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: root
+    password: rootpassword
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: reids
+      port: 6379
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: ticketing-group
+      auto-offset-reset: earliest
+
+thymeleaf:
+  cache: false # 개발 편의를 위해 캐시 끔

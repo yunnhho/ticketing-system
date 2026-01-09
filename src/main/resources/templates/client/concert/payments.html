@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/header :: header}"></head>
+<body>
+<div class="container mt-5">
+    <div class="card shadow-sm mx-auto" style="max-width: 500px;">
+        <div class="card-header bg-primary text-white text-center">
+            <h4>최종 결제 확인</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted text-center">선점하신 좌석은 5분간 유지됩니다.</p>
+            <hr>
+            <div class="d-flex justify-content-between mb-3">
+                <span>선택 좌석:</span>
+                <strong th:text="${seatId} + '번 좌석'"></strong>
+            </div>
+            <div class="d-flex justify-content-between mb-4">
+                <span>예매자 ID:</span>
+                <strong th:text="${userId}"></strong>
+            </div>
+            <button class="btn btn-success w-100" onclick="pay()">결제하기</button>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary w-100 mt-2">취소</a>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const seatId = [[${seatId}]];
+    const userId = [[${userId}]];
+
+    function pay() {
+        if(!confirm("정말로 결제하시겠습니까?")) return;
+
+        fetch(`/api/payments/complete?seatId=${seatId}&userId=${userId}`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    window.location.href = "/concerts/success";
+                } else {
+                    alert("결제 처리 중 오류가 발생했습니다. (만료된 세션 등)");
+                }
+            });
+    }
+</script>
+</body>
+</html>
