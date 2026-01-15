@@ -1,6 +1,6 @@
 package com.dev.ticketing_system.controller.admin;
 
-import com.dev.ticketing_system.dto.ConcertRequest;
+import com.dev.ticketing_system.dto.ConcertRequestDto;
 import com.dev.ticketing_system.entity.Concert;
 import com.dev.ticketing_system.repository.ConcertRepository;
 import com.dev.ticketing_system.repository.SeatRepository;
@@ -32,13 +32,13 @@ public class AdminConcertController {
     // 공연 등록 폼
     @GetMapping("/new")
     public String createForm(Model model) {
-        model.addAttribute("concertForm", new ConcertRequest());
+        model.addAttribute("concertForm", new ConcertRequestDto());
         return "admin/concert/createForm";
     }
 
     // 공연 등록 처리
     @PostMapping("/new")
-    public String create(@Valid @ModelAttribute("concertForm") ConcertRequest request, BindingResult result) {
+    public String create(@Valid @ModelAttribute("concertForm") ConcertRequestDto request, BindingResult result) {
         if (result.hasErrors()) {
             return "admin/concert/createForm";
         }

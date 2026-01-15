@@ -19,7 +19,7 @@ public class QueueScheduler {
     private final ConcertRepository concertRepository;
 
     /**
-     * 1초마다 대기열에서 유저를 추출하여 입장 허용 상태로 변경
+     * 3초마다 대기열에서 유저를 추출하여 입장 허용 상태로 변경
      * 대규모 트래픽 시 DB 부하를 고려하여 초당 처리량을 조절합니다.
      */
     @Scheduled(fixedDelay = 3000)
@@ -31,7 +31,7 @@ public class QueueScheduler {
 
         for (Concert concert : concerts) {
             // Redis 연산을 일괄 처리(Pipeline)하면 더 좋지만, 현재는 각 공연별로 호출
-            queueService.allowEntry(concert.getId(), 50);
+            queueService.allowEntry(concert.getId(), 100);
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.dev.ticketing_system.service;
 
-import com.dev.ticketing_system.dto.ConcertRequest;
+import com.dev.ticketing_system.dto.ConcertRequestDto;
 import com.dev.ticketing_system.entity.Concert;
 import com.dev.ticketing_system.entity.Seat;
 import com.dev.ticketing_system.repository.ConcertRepository;
@@ -31,7 +31,7 @@ public class ConcertService {
      * 새로운 공연 등록
      */
     @Transactional
-    public void save(ConcertRequest request) {
+    public void save(ConcertRequestDto request) {
         // 1. 공연 정보 저장
         Concert concert = new Concert(
                 request.getTitle(),

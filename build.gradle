@@ -32,6 +32,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.kafka:spring-kafka'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator' // 배포 시 서버 상태 모니터링
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus' // 프로메테우스 데이터 레지스트리
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -42,6 +43,7 @@ dependencies {
 	// Redis & Kafka (대용량 처리를 위해 미리 추가)
 	implementation 'org.redisson:redisson-spring-boot-starter:3.41.0'
 	implementation 'org.springframework.kafka:spring-kafka'
+
 }
 
 tasks.named('test') {

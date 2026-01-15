@@ -1,14 +1,50 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{admin/fragments/header :: header}"></head>
+<head th:replace="client/fragment/header :: header"></head>
+
 <body>
-<div class="container text-center mt-5">
-    <div class="card shadow p-5">
-        <h2 class="mb-4">서비스 접속 대기 중입니다.</h2>
-        <div class="spinner-border text-primary mb-4" role="status" style="width: 3rem; height: 3rem;"></div>
-        <p class="lead">현재 고객님 앞에 <br>
-            <strong id="rankText" class="display-4 text-primary" th:text="${waitingCount}">0</strong> 명 대기 중입니다.</p>
-        <p class="text-muted">잠시만 기다려 주시면 예매 페이지로 자동 이동합니다.</p>
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+
+    <div id="captcha-container" class="card shadow-lg border-0 p-4" style="max-width: 450px; width: 100%;">
+        <div class="card-body text-center">
+            <h3 class="fw-bold mb-3">🔒 보안 확인</h3>
+            <p class="text-muted mb-4">비정상적인 접근을 막기 위해<br>아래 문자를 입력해주세요.</p>
+
+            <div id="captcha-display" class="bg-light border rounded py-3 mb-3 fw-bold letter-spacing-5 fs-2 text-primary">
+                LOADING...
+            </div>
+
+            <div class="input-group mb-3">
+                <input type="text" id="captcha-input" class="form-control form-control-lg text-center" placeholder="보안 문자 입력">
+                <button class="btn btn-primary btn-lg" onclick="enterQueue()">입장</button>
+            </div>
+            <div class="d-grid">
+                <button class="btn btn-sm btn-link text-decoration-none text-secondary" onclick="location.reload()">새로고침</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="queue-container" class="card shadow-lg border-0 p-5 d-none" style="max-width: 500px; width: 100%;">
+        <div class="card-body text-center">
+            <h2 class="fw-bold mb-4">접속 대기 중...</h2>
+
+            <div class="spinner-border text-primary mb-4" role="status" style="width: 4rem; height: 4rem;"></div>
+
+            <p class="text-muted mb-1">현재 내 앞의 대기 인원</p>
+            <h1 id="rankText" class="display-3 fw-bold text-primary mb-4">0</h1>
+
+            <div class="bg-light rounded p-3 mb-3">
+                <p class="mb-1 small text-muted">예상 대기 시간</p>
+                <strong id="timeText" class="fs-4 text-dark">계산 중...</strong>
+            </div>
+
+            <div class="alert alert-warning d-flex align-items-center small text-start" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <div>
+                    새로고침 하거나 창을 닫으면<br>대기 순번이 초기화될 수 있습니다.
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -16,27 +52,65 @@
     const concertId = [[${concertId}]];
     const userId = [[${userId}]];
 
-    function checkStatus() {
-    fetch(`/concerts/${concertId}/status?userId=${userId}`)
-        .then(res => {
-            // 서버 응답이 200 OK가 아니거나 내용이 없으면 에러 처리
-            if (!res.ok) throw new Error('네트워크 응답 에러');
-            return res.json();
+    // 1. 캡차 로드
+    window.onload = function() {
+        fetch('/api/queue/captcha')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('captcha-display').innerText = data.captcha;
+            });
+    };
+
+    // 2. 대기열 진입 요청
+    function enterQueue() {
+        const input = document.getElementById('captcha-input').value;
+        const formData = new URLSearchParams();
+        formData.append('concertId', concertId);
+        formData.append('userId', userId);
+        formData.append('captchaInput', input);
+
+        fetch('/api/queue/token', {
+            method: 'POST',
+            body: formData
         })
-        .then(data => {
-            if (data.isAllowed) {
-                window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
+        .then(async res => {
+            if (res.ok) {
+                // UI 전환: 캡차 숨김 -> 대기열 표시
+                document.getElementById('captcha-container').classList.add('d-none');
+                document.getElementById('queue-container').classList.remove('d-none');
+                startPolling();
             } else {
-                document.getElementById('rankText').innerText = data.queueSize;
+                alert(await res.text()); // 에러 메시지 표시
+                document.getElementById('captcha-input').value = '';
             }
-        })
-        .catch(err => {
-            console.error("상태 확인 중 오류:", err);
-            // 에러 발생 시 사용자에게 알림을 주거나 재시도 간격을 조절할 수 있음
         });
     }
-    // 3초마다 대기 순번 체크
-    setInterval(checkStatus, 3000);
+
+    // 3. 상태 폴링 (3초 간격)
+    function startPolling() {
+        setInterval(() => {
+            fetch(`/api/queue/status?concertId=${concertId}&userId=${userId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.pass) {
+                        // [통과] 좌석 선택 페이지로 이동
+                        window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
+                    } else {
+                        // [대기] 순번 및 시간 업데이트
+                        document.getElementById('rankText').innerText = data.rank;
+
+                        const min = Math.floor(data.estimatedSeconds / 60);
+                        const sec = data.estimatedSeconds % 60;
+                        document.getElementById('timeText').innerText =
+                            (min > 0 ? min + "분 " : "") + sec + "초";
+                    }
+                })
+                .catch(err => console.error(err));
+        }, 3000);
+    }
 </script>
 </body>
 </html>

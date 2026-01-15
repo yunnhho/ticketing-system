@@ -1,0 +1,6 @@
+scrape_configs:
+  - job_name: 'ticketing-system'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['app:8083'] # 도커 컨테이너 서비스 이름과 포트

@@ -1,15 +1,26 @@
 server:
   port: 8083
+  tomcat:
+    threads:
+      max: 500
+      min-spare: 50
+    accept-count: 10000
+    connection-timeout: 30000
 
 spring:
   datasource:
-    url: jdbc:mysql://db:3306/ticketing_db?createDatabaseIfNotExist=true&useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
-    username: root
-    password: rootpassword
+    url: jdbc:mysql://db:3306/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME}
+    password: ${DB_ROOT_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 100 # 75로 상향
+      minimum-idle: 10
+      connection-timeout: 30000
 
   jpa:
     hibernate:
+      # 포트폴리오용이라면 초기 데이터 구성을 위해 ddl-auto: update 유지
       ddl-auto: update
     show-sql: true
     properties:
@@ -18,14 +29,41 @@ spring:
 
   data:
     redis:
-      host: reids
+      host: redis
       port: 6379
 
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: kafka:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: ticketing-group
       auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
-thymeleaf:
-  cache: false # 개발 편의를 위해 캐시 끔
+  thymeleaf:
+    cache: false
+
+# [추가] 그라파나 N/A 해결을 위한 필수 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus, health, info # 프로메테우스용 엔드포인트 개방
+  endpoint:
+    prometheus:
+      enabled: true  # [필수] 프로메테우스 엔드포인트 활성화
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ticketing-system # 그라파나 대시보드에서 필터링할 이름
+    export:
+      prometheus:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true

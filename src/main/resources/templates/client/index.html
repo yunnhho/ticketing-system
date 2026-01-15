@@ -1,38 +1,120 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{admin/fragments/header :: header}"></head>
-<body class="bg-light">
-<div class="container mt-5">
-    <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold">🎫 Concert Ticketing</h1>
-        <p class="lead text-muted">원하는 공연을 선택하고 실시간 예매를 시작하세요.</p>
+
+<head th:replace="client/fragment/header :: header"></head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg sticky-top mb-0">
+    <div class="container">
+        <a class="navbar-brand" href="/concerts">
+            <i class="bi bi-ticket-perforated-fill me-1"></i>Ticket Service
+        </a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link active fw-bold" href="/concerts">공연 목록</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="alert('데모 버전입니다.'); return false;">내 예매 내역</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<section class="bg-dark text-white py-5 mb-5" style="background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://source.unsplash.com/1600x900/?concert') center/cover;">
+    <div class="container text-center">
+        <h1 class="display-4 fw-bold">Find Your Dream Concert</h1>
+        <p class="lead mb-4">지금 바로 대기열에 참여하고 좌석을 선점하세요!</p>
+        <p id="user-display" class="badge bg-primary fs-6">
+        </p>
+    </div>
+</section>
+
+<div class="container mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h3 class="fw-bold mb-0">🔥 진행 중인 티켓팅</h3>
+        <span class="text-muted">현재 예매 가능한 공연입니다.</span>
     </div>
 
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        <div class="col" th:each="concert : ${concerts}">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body">
-                    <h5 class="card-title fw-bold" th:text="${concert.title}">공연 제목</h5>
-                    <p class="card-text text-muted" th:text="${concert.venue}">장소</p>
-                    <button class="btn btn-primary w-100 mt-3"
-                            th:onclick="'startBooking(' + ${concert.id} + ')'">예매하기</button>
+    <div class="row g-4">
+        <div class="col-md-4" th:each="concert : ${concerts}">
+            <div class="card concert-card h-100">
+                <div class="card-img-top d-flex align-items-center justify-content-center text-secondary" style="background-color: #f1f3f5;">
+                    <i class="bi bi-music-note-beamed" style="font-size: 4rem; opacity: 0.3;"></i>
+                </div>
+
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title fw-bold mb-1" th:text="${concert.title}">공연 제목</h5>
+                    <p class="card-text text-secondary small mb-3">
+                        <i class="bi bi-geo-alt-fill me-1 text-primary"></i>
+                        <span th:text="${concert.venue}">장소</span>
+                    </p>
+
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-light text-dark border">
+                                Total <span th:text="${concert.totalSeats}">500</span> Seats
+                            </span>
+                            <span class="text-danger fw-bold small">Selling Fast!</span>
+                        </div>
+
+                        <div class="d-grid">
+                            <button class="btn btn-primary btn-lg fw-bold"
+                                    th:onclick="'startTicketing(' + ${concert.id} + ')'">
+                                예매하기 <i class="bi bi-arrow-right-short"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
+
+        <div class="col-12 text-center py-5" th:if="${concerts.isEmpty()}">
+            <p class="text-muted">현재 진행 중인 공연이 없습니다.</p>
         </div>
     </div>
 </div>
 
+<footer class="bg-white py-4 mt-auto border-top">
+    <div class="container text-center text-muted small">
+        &copy; 2026 Ticket Service. All Rights Reserved.
+    </div>
+</footer>
+
 <script>
-    function startBooking(concertId) {
-        // 배포 환경에서 유저 구분을 위한 랜덤 ID 생성 (이미 있다면 재사용)
-        let userId = localStorage.getItem('ticketing_user_id');
+    // 페이지 로드 시 임시 유저 ID 생성 또는 로드
+    document.addEventListener("DOMContentLoaded", function() {
+        let userId = localStorage.getItem("ticketing_demo_user");
+
         if (!userId) {
-            userId = 'user_' + Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('ticketing_user_id', userId);
+            // 랜덤 유저 ID 생성 (예: user_1234)
+            userId = "user_" + Math.floor(Math.random() * 100000);
+            localStorage.setItem("ticketing_demo_user", userId);
         }
-        // 대기열로 자동 진입
-        location.href = `/concerts/${concertId}/wait?userId=${userId}`;
+
+        // 상단 배너에 접속중인 ID 표시
+        const userDisplay = document.getElementById("user-display");
+        if(userDisplay) {
+            userDisplay.innerText = "접속 ID: " + userId;
+        }
+    });
+
+    // 예매 버튼 클릭 시 호출
+    function startTicketing(concertId) {
+        const userId = localStorage.getItem("ticketing_demo_user");
+        if (!userId) {
+            alert("유저 정보를 로드하지 못했습니다. 새로고침 해주세요.");
+            return;
+        }
+
+        // 컨트롤러 로직에 맞춰 파라미터 전달 (/concerts/{id}/wait?userId=...)
+        window.location.href = `/concerts/${concertId}/wait?userId=${userId}`;
     }
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

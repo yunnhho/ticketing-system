@@ -1,5 +1,6 @@
 package com.dev.ticketing_system.service;
 
+import com.dev.ticketing_system.dto.QueueStatusDto;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
@@ -17,6 +18,7 @@ public class QueueService {
     private final RedissonClient redissonClient;
     private static final String QUEUE_KEY = "concert:queue:";
     private static final String ACTIVE_KEY = "concert:active:";
+    private static final double THROUGHTPUT_PER_SECOND = 50.0 / 3.0;
 
     /**
      * 대기열 참가
@@ -79,5 +81,22 @@ public class QueueService {
         String userActiveKey = ACTIVE_KEY + concertId + ":" + userId;
         // 키가 존재하면(만료되지 않았으면) true 반환
         return redissonClient.getBucket(userActiveKey).isExists();
+    }
+
+    public QueueStatusDto getQueueStatus(Long concertId, String userId) {
+        String key = QUEUE_KEY + concertId;
+        RScoredSortedSet<String> queue = redissonClient.getScoredSortedSet(key);
+
+        Integer rank = queue.rank(userId);
+
+        if (rank == null) {
+            // 이미 입장했거나 없는 유저
+            return new QueueStatusDto(0L, 0L, true);
+        }
+
+        long myRank = rank + 1; // 0부터 시작하므로 +1
+        long estimatedSeconds = (long) (myRank / THROUGHTPUT_PER_SECOND);
+
+        return new QueueStatusDto(myRank, estimatedSeconds, false);
     }
 }

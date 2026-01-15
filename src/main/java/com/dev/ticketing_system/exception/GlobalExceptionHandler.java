@@ -1,6 +1,8 @@
 package com.dev.ticketing_system.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -8,6 +10,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @Slf4j
 @ControllerAdvice // 모든 컨트롤러의 예외를 여기서 가로챕니다.
 public class GlobalExceptionHandler {
+
+    // [추가된 부분] 좌석 선점 충돌 시 JSON 응답 (AJAX용)
+    // 409 Conflict 상태 코드를 내려주면 JS에서 이를 감지해서 UI를 변경함
+    @ExceptionHandler(SeatAlreadyTakenException.class)
+    public ResponseEntity<String> handleSeatTaken(SeatAlreadyTakenException e) {
+        log.warn("좌석 선점 실패: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+    }
 
     /**
      * 비즈니스 로직 중 발생하는 커스텀 예외 처리

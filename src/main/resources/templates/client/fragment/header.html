@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="header">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ticket Service</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <style>
+        /* [공통] 배경 및 폰트 */
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        /* [네비게이션 바] 클라이언트는 상단형 네비게이션 사용 */
+        .navbar {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .navbar-brand {
+            font-weight: 800;
+            color: #3b82f6 !important; /* 브랜드 컬러 */
+            letter-spacing: -0.5px;
+        }
+
+        /* [카드 디자인] 공연 목록용 */
+        .concert-card {
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .concert-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.08);
+        }
+        .card-img-top {
+            height: 200px;
+            object-fit: cover;
+            background-color: #e9ecef;
+        }
+
+        /* [좌석 디자인] 좌석 선택 페이지용 핵심 스타일 */
+        .seat-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr); /* 한 줄에 10개 */
+            gap: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .seat-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #495057;
+        }
+
+        .seat-item:hover:not(.disabled) {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        /* 선택된 좌석 (클릭 시 JS로 토글) */
+        .seat-item.selected {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        /* 이미 팔린 좌석 (SOLD) */
+        .seat-item.sold {
+            background-color: #e9ecef;
+            color: #adb5bd;
+            cursor: not-allowed;
+            border-color: transparent;
+        }
+
+        /* [기타] 진행 상태 바 등 */
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+    </style>
+</head>
+</html>

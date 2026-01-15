@@ -8,8 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +23,7 @@ import java.util.List;
 public class DataInitConfig implements CommandLineRunner {
 
     private final ConcertRepository concertRepository;
-    private final SeatRepository seatRepository;
+    private final JdbcTemplate jdbcTemplate; // JPA 대신 JdbcTemplate 주입
 
     @Override
     @Transactional // 좌석 대량 저장을 위해 트랜잭션 처리
@@ -34,19 +38,29 @@ public class DataInitConfig implements CommandLineRunner {
             concertRepository.save(concert1);
             concertRepository.save(concert2);
 
-            // 2. 각 공연에 맞는 좌석 생성
-            createSeatsForConcert(concert1);
-            createSeatsForConcert(concert2);
+            // JDBC Batch를 이용한 고속 저장
+            bulkInsertSeats(concert1);
+            bulkInsertSeats(concert2);
 
-            log.info(">>> 공연 2건 및 좌석 {}개 등록 완료", seatRepository.count());
+            log.info(">>> 초기 데이터 공연 등록 완료");
         }
     }
 
-    private void createSeatsForConcert(Concert concert) {
-        List<Seat> seats = new ArrayList<>();
-        for (int i = 1; i <= concert.getTotalSeats(); i++) {
-            seats.add(new Seat(concert, i)); // Seat 엔티티의 생성자(Concert, seatNumber) 사용
-        }
-        seatRepository.saveAll(seats); // 벌크 인서트로 성능 최적화
+    private void bulkInsertSeats(Concert concert) {
+        String sql = "INSERT INTO seats (concert_id, seat_number, status, version) VALUES (?, ?, ?, 0)";
+
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                ps.setLong(1, concert.getId());
+                ps.setInt(2, i + 1); // 좌석 번호 (1부터 시작)
+                ps.setString(3, "AVAILABLE"); // SeatStatus enum 문자열
+            }
+
+            @Override
+            public int getBatchSize() {
+                return concert.getTotalSeats();
+            }
+        });
     }
 }

@@ -1,43 +1,149 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{admin/fragments/header :: header}"></head>
+<head th:replace="client/fragment/header :: header"></head>
+
 <body>
-<div class="container mt-5">
-    <div class="card shadow-sm mx-auto" style="max-width: 500px;">
-        <div class="card-header bg-primary text-white text-center">
-            <h4>최종 결제 확인</h4>
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
+
+        <div class="card-header bg-primary text-white text-center py-3">
+            <h5 class="mb-0 fw-bold">최종 결제 확인</h5>
         </div>
-        <div class="card-body">
-            <p class="text-muted text-center">선점하신 좌석은 5분간 유지됩니다.</p>
-            <hr>
-            <div class="d-flex justify-content-between mb-3">
-                <span>선택 좌석:</span>
-                <strong th:text="${seatId} + '번 좌석'"></strong>
+
+        <div class="card-body p-4">
+
+            <div class="text-center mb-4">
+                <p class="text-muted small mb-1">결제 유효 시간</p>
+                <div class="badge bg-danger fs-4 px-3 py-2">
+                    <i class="bi bi-stopwatch"></i>
+                    <span id="timer">05:00</span>
+                </div>
             </div>
-            <div class="d-flex justify-content-between mb-4">
-                <span>예매자 ID:</span>
-                <strong th:text="${userId}"></strong>
+
+            <ul class="list-group list-group-flush mb-4">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">공연 ID</span>
+                    <span th:text="${concertId}">1</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">좌석 번호</span>
+                    <span th:text="${seatId} + '번'">1번</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">예매자</span>
+                    <span th:text="${userId}">user</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">결제 금액</span>
+                    <span class="fw-bold">100,000원</span>
+                </li>
+            </ul>
+
+            <div id="paymentData">
+                <input type="hidden" id="seatId" th:value="${seatId}">
+                <input type="hidden" id="userId" th:value="${userId}">
+                <input type="hidden" id="concertId" th:value="${concertId}">
+
+                <button type="button"
+                        id="payButton"
+                        onclick="requestPayment()"
+                        class="btn btn-success w-100 btn-lg fw-bold mb-2">
+                    결제하기
+                </button>
             </div>
-            <button class="btn btn-success w-100" onclick="pay()">결제하기</button>
-            <a href="javascript:history.back()" class="btn btn-outline-secondary w-100 mt-2">취소</a>
+
+            <button onclick="cancelPay()" class="btn btn-outline-secondary w-100">
+                취소
+            </button>
+
         </div>
     </div>
 </div>
 
 <script th:inline="javascript">
+    /* Thymeleaf 변수를 JS 변수로 할당 */
     const seatId = [[${seatId}]];
+    const concertId = [[${concertId}]];
     const userId = [[${userId}]];
 
-    function pay() {
-        if(!confirm("정말로 결제하시겠습니까?")) return;
+    /* 타이머 로직 (기존 유지) */
+    let timeLeft = 300;
+    const timer = document.getElementById("timer");
 
-        fetch(`/api/payments/complete?seatId=${seatId}&userId=${userId}`, { method: 'POST' })
-            .then(res => {
-                if (res.ok) {
-                    window.location.href = "/concerts/success";
-                } else {
-                    alert("결제 처리 중 오류가 발생했습니다. (만료된 세션 등)");
-                }
+    const timerInterval = setInterval(() => {
+        if (--timeLeft <= 0) {
+            clearInterval(timerInterval);
+            alert("결제 시간이 초과되었습니다.");
+            // 타임아웃 시 에러 페이지로 리다이렉트
+            location.href = `/concerts/${concertId}/seats?userId=${userId}&error=timeout`;
+        }
+        const m = Math.floor(timeLeft / 60);
+        const s = String(timeLeft % 60).padStart(2, '0');
+        timer.innerText = `${m}:${s}`;
+    }, 1000);
+
+
+    /* ✅ 변경점 2: API 통신 함수 구현 (requestPayment) */
+    function requestPayment() {
+        if (!confirm("100,000원을 결제하시겠습니까?")) {
+            return;
+        }
+
+        const btn = document.getElementById("payButton");
+
+        // 중복 클릭 방지 UI 처리
+        btn.Disabled = true;
+        btn.innerText = "결제 처리 중...";
+
+        // 서버의 Controller가 @RequestParam을 받으므로
+        // URLSearchParams 또는 FormData 형식을 사용해야 합니다.
+        // (Controller가 @RequestBody라면 JSON.stringify 사용)
+        const params = new URLSearchParams();
+        params.append('seatId', seatId);
+        params.append('userId', userId);
+
+        fetch('/payment/process', {
+            method: 'POST',
+            headers: {
+                // @RequestParam 처리를 위한 Content-Type
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
+        })
+        .then(async response => {
+            // 응답 상태 코드에 따른 분기 처리
+            if (response.ok) {
+                // [200 OK] 성공 -> 성공 페이지로 이동
+                window.location.href = "/concerts/success";
+            }
+            else if (response.status === 409) {
+                // [409 Conflict] 이미 팔린 좌석 -> 에러 메시지와 함께 좌석 선택 화면으로 이동
+                alert("이미 다른 사용자가 결제한 좌석입니다.");
+                window.location.href = `/concerts/${concertId}/seats?userId=${userId}&error=taken`;
+            }
+            else {
+                // 그 외 에러 (500 등)
+                throw new Error(`Server Error: ${response.status}`);
+            }
+        })
+        .catch(error => {
+            console.error("Payment Error:", error);
+            alert("결제 시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+
+            // 에러 발생 시 버튼 복구
+            btn.Disabled = false;
+            btn.innerText = "결제하기";
+        });
+    }
+
+    /* 취소 로직 (기존 유지 + API 호출 방식 통일) */
+    function cancelPay() {
+        if (!confirm("결제를 취소하시겠습니까?")) return;
+
+        // 취소 API 호출 (결과 기다리지 않고 이동해도 되지만, 안전하게 finally에서 이동)
+        fetch(`/api/payments/cancel?seatId=${seatId}`, { method: 'POST' })
+            .finally(() => {
+                location.href = `/concerts/${concertId}/seats?userId=${userId}`;
             });
     }
 </script>

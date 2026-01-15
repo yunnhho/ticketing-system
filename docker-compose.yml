@@ -1,17 +1,20 @@
-version: '3.8'
-
 services:
   # MySQL Database
   db:
     image: mysql:8.0
+    command: --max_connections=200
     container_name: ticketing-db
     ports:
       - "3306:3306"
     environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - ticketing_db_data:/var/lib/mysql # 로컬 경로(./) 대신 이름 사용
     networks:
       - ticketing-network
 
@@ -24,7 +27,6 @@ services:
     networks:
       - ticketing-network
 
-  # Kafka Infrastructure
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: ticketing-zookeeper
@@ -33,6 +35,7 @@ services:
     networks:
       - ticketing-network
 
+  # Kafka Infrastructure
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: ticketing-kafka
@@ -61,14 +64,40 @@ services:
       - redis
       - kafka
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${DB_USERNAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_ROOT_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    networks:
+      - ticketing-network
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - ticketing-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
     networks:
       - ticketing-network
 
 networks:
   ticketing-network:
     driver: bridge
+
+volumes:
+  ticketing_db_data:
+
