@@ -1,11 +1,14 @@
 package com.dev.ticketing_system.repository;
 
 import com.dev.ticketing_system.entity.Seat;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SeatRepository extends JpaRepository<Seat, Long> {
 
@@ -24,4 +27,9 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     // '특정 콘서트'의 판매된 좌석 수만 카운트 (모니터링 시 더 정확함)
     // 예: countByConcertIdAndStatus(1L, SeatStatus.SOLD)
     int countByConcertIdAndStatus(Long concertId, Seat.SeatStatus status);
+
+    // 비관적 락 (DB의 row lock 사용)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Seat s where s.id = :id")
+    Optional<Seat> findByIdWithPessimisticLock(@Param("id") Long id);
 }

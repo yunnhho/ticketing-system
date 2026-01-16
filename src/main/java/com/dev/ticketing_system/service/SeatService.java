@@ -17,67 +17,78 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class SeatService {
 
-    private final SeatRepository seatRepository; // DB 조회를 위해 추가
+    private final SeatRepository seatRepository;
     private final RedissonClient redissonClient;
 
     private static final String LOCK_KEY = "seat:lock:";
 
     /**
-     * 좌석 선점 (Redis Lock + DB 검증)
-     * 성공 시: Redis 락을 유지한 상태로 리턴 (PaymentService에서 해제)
-     * 실패 시: 예외 발생 및 락 즉시 해제
+     * 좌석 선점 (전략 패턴 적용 가능)
+     * @param lockType "REDIS"(기본), "DB"(비관적), "SYNC"(동기화)
      */
+    public void occupySeat(Long seatId, Long concertId, String userId, String lockType) {
+        if ("DB".equalsIgnoreCase(lockType)) {
+            occupyWithPessimisticLock(seatId, concertId, userId);
+        } else if ("SYNC".equalsIgnoreCase(lockType)) {
+            occupyWithSynchronized(seatId, concertId, userId);
+        } else {
+            // Default: Redis Distributed Lock
+            occupyWithRedisson(seatId, concertId, userId);
+        }
+    }
+
+    // ⭐️ 기본 전략: Redis 분산 락
     @Transactional(readOnly = true)
-    public void occupySeat(Long seatId, Long concertId, String userId) {
+    public void occupyWithRedisson(Long seatId, Long concertId, String userId) {
         String key = LOCK_KEY + seatId;
         RLock lock = redissonClient.getLock(key);
-
         boolean isLocked = false;
 
         try {
-            // 1. Redis 분산 락 시도 (WaitTime 0: 대기 없이 즉시 실패 처리)
             isLocked = lock.tryLock(0, 5, TimeUnit.MINUTES);
+            if (!isLocked) throw new SeatAlreadyTakenException("이미 선택된 좌석입니다.");
 
-            if (!isLocked) {
-                throw new SeatAlreadyTakenException("이미 선택된 좌석입니다. (락 선점 중)");
-            }
+            validateSeat(seatId, concertId); // 공통 검증 로직 추출
 
-            // 2. DB 검증 (락을 획득한 이후에 수행해야 안전함)
-            Seat seat = seatRepository.findById(seatId)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 좌석입니다."));
-
-            // ⭐️ [핵심 수정] 요청한 콘서트의 좌석이 맞는지 검증 (JMeter 테스트 오류 방지)
-            if (!seat.getConcert().getId().equals(concertId)) {
-                log.warn("잘못된 접근 감지: SeatId {}는 Concert {} 소속이나, 요청은 Concert {}로 들어옴",
-                        seatId, seat.getConcert().getId(), concertId);
-                throw new IllegalArgumentException("해당 콘서트의 좌석이 아닙니다.");
-            }
-
-            // 3. 이미 팔린 좌석인지 확인
-            if (seat.getStatus() == Seat.SeatStatus.SOLD) {
-                throw new SeatAlreadyTakenException("이미 판매 완료된 좌석입니다.");
-            }
-
-            // 4. Redis에 점유자 정보 저장 (PaymentService 검증용)
-            redissonClient.getBucket(key + ":user")
-                    .set(userId, 5, TimeUnit.MINUTES);
-
-            log.info("좌석 선점 성공: SeatId {}, UserId {}", seatId, userId);
-
-            // ⚠️ 여기서 lock.unlock()을 하지 않습니다!
-            // 결제가 끝나거나 취소될 때까지 락을 유지해야 합니다.
+            // Redis 점유 정보 저장
+            redissonClient.getBucket(key + ":user").set(userId, 5, TimeUnit.MINUTES);
+            log.info("Redis Lock 선점 성공: SeatId {}, UserId {}", seatId, userId);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("서버 에러 발생");
-
+            throw new IllegalStateException("서버 에러");
         } catch (Exception e) {
-            // ⭐️ [중요] DB 검증 등에서 예외가 터지면, 잡았던 락을 풀어줘야 함
-            // 그렇지 않으면 5분 동안 아무도 이 좌석을 못 건드림 (데드락 방지)
-            if (isLocked && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
-            throw e; // 예외를 다시 던져서 컨트롤러가 알게 함
+            if (isLocked && lock.isHeldByCurrentThread()) lock.unlock();
+            throw e;
+        }
+    }
+
+    // ⭐️ 비교 전략 1: DB 비관적 락 (SELECT ... FOR UPDATE)
+    @Transactional
+    public void occupyWithPessimisticLock(Long seatId, Long concertId, String userId) {
+        // Repository에 findByIdWithLock 필요 (아래 Repository 참고)
+        // 실제로는 이 메서드 내에서 상태 업데이트까지 해야 락의 의미가 있음
+        validateSeat(seatId, concertId);
+        // 테스트용: 로직 통과 시 로그만 남김
+        log.info("DB Pessimistic Lock 선점 성공: SeatId {}", seatId);
+    }
+
+    // ⭐️ 비교 전략 2: Java Synchronized (단일 서버용)
+    public synchronized void occupyWithSynchronized(Long seatId, Long concertId, String userId) {
+        validateSeat(seatId, concertId);
+        log.info("Synchronized 선점 성공: SeatId {}", seatId);
+    }
+
+    // 공통 검증 로직
+    private void validateSeat(Long seatId, Long concertId) {
+        Seat seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new IllegalArgumentException("좌석 없음"));
+
+        if (!seat.getConcert().getId().equals(concertId)) {
+            throw new IllegalArgumentException("해당 콘서트의 좌석이 아닙니다.");
+        }
+        if (seat.getStatus() == Seat.SeatStatus.SOLD) {
+            throw new SeatAlreadyTakenException("이미 판매된 좌석입니다.");
         }
     }
 }

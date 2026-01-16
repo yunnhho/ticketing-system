@@ -11,5 +11,5 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 # 빌드된 jar 파일만 복사
 COPY --from=build /app/build/libs/*.jar app.jar
-# 실행 시 프로파일을 prod로 설정 (컨테이너 간 통신용)
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
+# 실행 시 프로파일을 prod로 설정 (컨테이너 간 통신용) Heap 메모리 75%할당
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
