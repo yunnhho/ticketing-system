@@ -61,8 +61,8 @@ sequenceDiagram
         Server->>DB: 최종 상태 변경 (SOLD) & 로그 저장
     end
 ```
-
-### [Part 2] 핵심 기술적 도전, 성능 테스트 (이어서 붙여넣으세요)
+---
+### [Part 2] 핵심 기술적 도전, 성능 테스트 (이미지 포함)
 
 ## 3. 핵심 기술적 도전과 해결 과정 (Challenges & Solutions)
 
@@ -100,14 +100,29 @@ Redis 기반의 **Redisson 분산 락**을 도입했습니다.
 
 ---
 
-## 4. 성능 테스트 및 운영 고려사항
+## 4. 성능 테스트 및 모니터링 (Performance & Monitoring)
 
-### JMeter 부하 테스트 결과
-* **시나리오**: 1,000명의 유저가 동시에 접속하여 500개 좌석 예매 시도
+실제 장애 상황을 대비하기 위해 JMeter를 이용한 Stress Test를 진행하고, Grafana와 Slack으로 모니터링 환경을 구축했습니다.
+
+### 1. 트래픽 스파이크 관측 (Grafana)
+![Grafana Monitoring](./images/grafana_queue_spike.png)
+* **상황**: JMeter로 순간적인 트래픽 폭주를 발생시켰을 때, `custom_queue_size` 메트릭이 급격히 치솟는 것을 실시간으로 확인했습니다.
+* **분석**: 대기열 시스템이 없었다면 이 요청들이 모두 DB를 강타했겠지만, Redis가 앞단에서 트래픽을 모두 흡수하여 버퍼링하고 있음을 보여줍니다.
+
+### 2. 임계치 기반 알람 (Slack Alert)
+![Slack Alert](./images/slack_alert.png)
+* **대응**: 대기열 사이즈가 설정된 임계치를 초과하자마자 즉시 Slack으로 **[Firing]** 알람이 도착했습니다.
+* **의의**: 개발자가 24시간 모니터를 보고 있지 않아도, 시스템 이상 징후를 즉시 파악하고 대응할 수 있는 환경을 마련했습니다.
+
+### 3. 부하 테스트 최종 결과 (JMeter)
+![JMeter Result](./images/jmeter_result.png)
+* **시나리오**: 1,000명의 유저 동시 접속 (500개 좌석 예매)
 * **결과**:
-    * **성공률**: 100% (서버 다운 없음)
-    * **데이터 정합성**: 판매된 좌석 수 정확히 500개 (초과 예매 0건)
-    * **응답 속도**: 대기열 적용 전 대비 평균 응답 시간(Latency) 안정화
+    * **성공률**: 100% (HTTP 500 에러 없음)
+    * **데이터 정합성**: Overbooking 0건 (정확히 500석 판매)
+    * **안정성**: 대기열 시스템 도입 후 DB Connection Pool 고갈 현상 해결
+
+---
 
 ### 운영을 위한 고민들 (DevOps)
 1.  **JVM 튜닝**: 도커 컨테이너 안에서 자바가 메모리를 제대로 인식하지 못해 죽는(OOM) 문제를 겪고, `-XX:MaxRAMPercentage=75.0` 옵션을 추가해 해결했습니다.
@@ -146,4 +161,3 @@ docker logs -f ticketing-app
 * 메인 접속: http://localhost:8083/concerts
 
 * 관리자 대시보드: http://localhost:8083/admin/dashboard
-

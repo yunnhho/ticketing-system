@@ -24,6 +24,10 @@ repositories {
 	mavenCentral()
 }
 
+ext {
+	set('springCloudVersion', "2024.0.0")
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -34,7 +38,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator' // 배포 시 서버 상태 모니터링
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus' // 프로메테우스 데이터 레지스트리
 	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.3'
+	implementation 'org.apache.commons:commons-lang3:3.18.0'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -46,6 +51,12 @@ dependencies {
 	implementation 'org.redisson:redisson-spring-boot-starter:3.41.0'
 	implementation 'org.springframework.kafka:spring-kafka'
 
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
 }
 
 tasks.named('test') {

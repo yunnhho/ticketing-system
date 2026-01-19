@@ -96,6 +96,8 @@ services:
     container_name: grafana
     ports:
       - "3000:3000"
+    volumes: # 이 부분을 추가해야 설정이 영구 저장됩니다.
+      - ./grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
     networks:

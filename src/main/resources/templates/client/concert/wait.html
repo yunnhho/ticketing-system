@@ -53,13 +53,19 @@
     const userId = [[${userId}]];
 
     // 1. 캡차 로드
-    window.onload = function() {
-        fetch('/api/queue/captcha')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('captcha-display').innerText = data.captcha;
-            });
-    };
+window.onload = function() {
+    fetch('/api/queue/captcha')
+        .then(res => res.json())
+        .then(data => {
+            // [수정]구 ApiResponse 조(data.data)에 맞춰 경로 수정
+            if (data.success) {
+                document.getElementById('captcha-display').innerText = data.data.captcha;
+            } else {
+                alert("캡차 로드 실패");
+            }
+        })
+        .catch(err => console.error("API 호출 에러:", err));
+};
 
     // 2. 대기열 진입 요청
     function enterQueue() {
@@ -87,30 +93,36 @@
     }
 
     // 3. 상태 폴링 (3초 간격)
-    function startPolling() {
-        setInterval(() => {
-            fetch(`/api/queue/status?concertId=${concertId}&userId=${userId}`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    return res.json();
-                })
-                .then(data => {
-                    if (data.pass) {
-                        // [통과] 좌석 선택 페이지로 이동
-                        window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
-                    } else {
-                        // [대기] 순번 및 시간 업데이트
-                        document.getElementById('rankText').innerText = data.rank;
+function startPolling() {
+    setInterval(() => {
+        fetch(`/api/queue/status?concertId=${concertId}&userId=${userId}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
+            .then(response => { // 변수명을 response로 바꾸면 헷갈리지 않음
+                // [수정] ApiResponse 구조에 맞춰 response.data로 접근
+                const data = response.data;
 
-                        const min = Math.floor(data.estimatedSeconds / 60);
-                        const sec = data.estimatedSeconds % 60;
-                        document.getElementById('timeText').innerText =
-                            (min > 0 ? min + "분 " : "") + sec + "초";
-                    }
-                })
-                .catch(err => console.error(err));
-        }, 3000);
-    }
+                if (data.isPass) { // [주의] DTO 필드명이 isPass이므로 JSON도 보통 isPass 또는 pass로 옴 (Lombok/Jackson 설정에 따라 다름)
+                    // 만약 동작 안 하면 data.pass 로도 시도해보세요.
+                    // Spring Boot 기본 설정에서 boolean isPass는 "isPass"로 직렬화되는 경우가 많습니다.
+
+                    // [통과] 좌석 선택 페이지로 이동
+                    window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
+                } else {
+                    // [대기] 순번 및 시간 업데이트
+                    document.getElementById('rankText').innerText = data.rank;
+
+                    const min = Math.floor(data.estimatedSeconds / 60);
+                    const sec = data.estimatedSeconds % 60;
+                    document.getElementById('timeText').innerText =
+                        (min > 0 ? min + "분 " : "") + sec + "초";
+                }
+            })
+            .catch(err => console.error(err));
+    }, 3000);
+}
 </script>
 </body>
 </html>

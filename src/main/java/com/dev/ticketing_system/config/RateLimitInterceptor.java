@@ -36,7 +36,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         // 3. 규칙 설정: 1분(60초)에 최대 100회 요청 허용 (상황에 따라 조절)
         // trySetRate는 이미 설정되어 있으면 false를 반환하므로 성능 영향 거의 없음
-        rateLimiter.trySetRate(RateType.OVERALL, 100, 60, RateIntervalUnit.SECONDS);
+        // rateLimiter.trySetRate(RateType.OVERALL, 100, 60, RateIntervalUnit.SECONDS);
+
+        // 테스트용 설정
+        rateLimiter.trySetRate(RateType.OVERALL, 10000, 60, RateIntervalUnit.SECONDS);
+
 
         // 4. 토큰 획득 시도 (Non-blocking)
         if (!rateLimiter.tryAcquire()) {
