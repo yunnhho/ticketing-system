@@ -105,17 +105,17 @@ Redis 기반의 **Redisson 분산 락**을 도입했습니다.
 실제 장애 상황을 대비하기 위해 JMeter를 이용한 Stress Test를 진행하고, Grafana와 Slack으로 모니터링 환경을 구축했습니다.
 
 ### 1. 트래픽 스파이크 관측 (Grafana)
-![Grafana Monitoring](./images/grafana_queue_spike.png)
+![Grafana Monitoring](./image/grafana_queue_spike.png)
 * **상황**: JMeter로 순간적인 트래픽 폭주를 발생시켰을 때, `custom_queue_size` 메트릭이 급격히 치솟는 것을 실시간으로 확인했습니다.
 * **분석**: 대기열 시스템이 없었다면 이 요청들이 모두 DB를 강타했겠지만, Redis가 앞단에서 트래픽을 모두 흡수하여 버퍼링하고 있음을 보여줍니다.
 
 ### 2. 임계치 기반 알람 (Slack Alert)
-![Slack Alert](./images/slack_alert.png)
+![Slack Alert](./image/slack_alert.png)
 * **대응**: 대기열 사이즈가 설정된 임계치를 초과하자마자 즉시 Slack으로 **[Firing]** 알람이 도착했습니다.
 * **의의**: 개발자가 24시간 모니터를 보고 있지 않아도, 시스템 이상 징후를 즉시 파악하고 대응할 수 있는 환경을 마련했습니다.
 
 ### 3. 부하 테스트 최종 결과 (JMeter)
-![JMeter Result](./images/jmeter_result.png)
+![JMeter Result](./image/jmeter_result.png)
 * **시나리오**: 1,000명의 유저 동시 접속 (500개 좌석 예매)
 * **결과**:
     * **성공률**: 100% (HTTP 500 에러 없음)
