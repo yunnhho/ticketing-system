@@ -121,6 +121,7 @@ Redis 기반의 **Redisson 분산 락**을 도입했습니다.
     * **성공률**: 100% (HTTP 500 에러 없음)
     * **데이터 정합성**: Overbooking 0건 (정확히 500석 판매)
     * **안정성**: 대기열 시스템 도입 후 DB Connection Pool 고갈 현상 해결
+Test Environment: Local Docker Compose (All-in-one) Avg Throughput: 125/sec (대기열 시스템의 유량 제어 정상 작동 확인)
 
 ---
 
