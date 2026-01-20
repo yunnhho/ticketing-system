@@ -100,14 +100,10 @@ function startPolling() {
                 if (!res.ok) throw new Error('Network response was not ok');
                 return res.json();
             })
-            .then(response => { // 변수명을 response로 바꾸면 헷갈리지 않음
-                // [수정] ApiResponse 구조에 맞춰 response.data로 접근
+            .then(response => {
                 const data = response.data;
 
-                if (data.isPass) { // [주의] DTO 필드명이 isPass이므로 JSON도 보통 isPass 또는 pass로 옴 (Lombok/Jackson 설정에 따라 다름)
-                    // 만약 동작 안 하면 data.pass 로도 시도해보세요.
-                    // Spring Boot 기본 설정에서 boolean isPass는 "isPass"로 직렬화되는 경우가 많습니다.
-
+                if (data.pass) {
                     // [통과] 좌석 선택 페이지로 이동
                     window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
                 } else {
