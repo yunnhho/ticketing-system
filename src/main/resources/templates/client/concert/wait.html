@@ -48,28 +48,40 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
 <script th:inline="javascript">
     const concertId = [[${concertId}]];
     const userId = [[${userId}]];
+    let stompClient = null;
 
-    // 1. 캡차 로드
-window.onload = function() {
-    fetch('/api/queue/captcha')
-        .then(res => res.json())
-        .then(data => {
-            // [수정]구 ApiResponse 조(data.data)에 맞춰 경로 수정
-            if (data.success) {
-                document.getElementById('captcha-display').innerText = data.data.captcha;
-            } else {
-                alert("캡차 로드 실패");
-            }
-        })
-        .catch(err => console.error("API 호출 에러:", err));
-};
+    // 1. 페이지 로드 시 캡차 불러오기
+    window.onload = function() {
+        fetch('/api/queue/captcha')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('captcha-display').innerText = data.data.captcha;
+                } else {
+                    alert("캡차 로드 실패");
+                }
+            })
+            .catch(err => {
+                console.error("API 호출 에러:", err);
+                document.getElementById('captcha-display').innerText = "ERROR";
+            });
+    };
 
-    // 2. 대기열 진입 요청
+    // 2. 캡차 입력 후 대기열 진입
     function enterQueue() {
         const input = document.getElementById('captcha-input').value;
+
+        if (!input) {
+            alert("보안 문자를 입력해주세요.");
+            return;
+        }
+
         const formData = new URLSearchParams();
         formData.append('concertId', concertId);
         formData.append('userId', userId);
@@ -81,44 +93,73 @@ window.onload = function() {
         })
         .then(async res => {
             if (res.ok) {
-                // UI 전환: 캡차 숨김 -> 대기열 표시
                 document.getElementById('captcha-container').classList.add('d-none');
                 document.getElementById('queue-container').classList.remove('d-none');
+
+                // 라이브러리가 로드된 후 실행되므로 안전함
+                connectWebSocket();
                 startPolling();
             } else {
-                alert(await res.text()); // 에러 메시지 표시
+                alert(await res.text());
                 document.getElementById('captcha-input').value = '';
+                window.onload(); // 캡차 새로고침
             }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // 3. 웹소켓 연결
+    function connectWebSocket() {
+        // SockJS가 이제 정의되어 있으므로 에러가 나지 않습니다.
+        const socket = new SockJS('/ws-queue');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect({}, function (frame) {
+            console.log('WS Connected');
+
+            stompClient.subscribe('/topic/queue/' + userId, function (message) {
+                const data = JSON.parse(message.body);
+                if (data.pass) {
+                    goToSeats();
+                }
+            });
+        }, function(error) {
+            console.error("WS Error:", error);
         });
     }
 
-    // 3. 상태 폴링 (3초 간격)
-function startPolling() {
-    setInterval(() => {
-        fetch(`/api/queue/status?concertId=${concertId}&userId=${userId}`)
-            .then(res => {
-                if (!res.ok) throw new Error('Network response was not ok');
-                return res.json();
-            })
-            .then(response => {
-                const data = response.data;
+    // 4. 상태 폴링
+    function startPolling() {
+        let isPassed = false;
+        const intervalId = setInterval(() => {
+            if(isPassed) {
+                clearInterval(intervalId);
+                return;
+            }
 
-                if (data.pass) {
-                    // [통과] 좌석 선택 페이지로 이동
-                    window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
-                } else {
-                    // [대기] 순번 및 시간 업데이트
-                    document.getElementById('rankText').innerText = data.rank;
+            fetch(`/api/queue/status?concertId=${concertId}&userId=${userId}`)
+                .then(res => res.json())
+                .then(response => {
+                    const data = response.data;
+                    if (data.pass) {
+                        isPassed = true;
+                        goToSeats();
+                    } else {
+                        document.getElementById('rankText').innerText = data.rank;
+                        const min = Math.floor(data.estimatedSeconds / 60);
+                        const sec = data.estimatedSeconds % 60;
+                        document.getElementById('timeText').innerText =
+                            (min > 0 ? min + "분 " : "") + sec + "초";
+                    }
+                })
+                .catch(err => console.error(err));
+        }, 3000);
+    }
 
-                    const min = Math.floor(data.estimatedSeconds / 60);
-                    const sec = data.estimatedSeconds % 60;
-                    document.getElementById('timeText').innerText =
-                        (min > 0 ? min + "분 " : "") + sec + "초";
-                }
-            })
-            .catch(err => console.error(err));
-    }, 3000);
-}
+    function goToSeats() {
+        window.location.href = `/concerts/${concertId}/seats?userId=${userId}`;
+    }
 </script>
 </body>
 </html>

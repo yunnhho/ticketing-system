@@ -47,10 +47,16 @@ dependencies {
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+
 	// Redis & Kafka (대용량 처리를 위해 미리 추가)
 	implementation 'org.redisson:redisson-spring-boot-starter:3.41.0'
 	implementation 'org.springframework.kafka:spring-kafka'
 
+	implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+	implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
+
+	// WebSocket
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 }
 
 dependencyManagement {

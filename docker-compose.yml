@@ -103,6 +103,14 @@ services:
     networks:
       - ticketing-network
 
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - ticketing-network
+
 networks:
   ticketing-network:
     driver: bridge

@@ -16,16 +16,17 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     @Query("SELECT s FROM Seat s JOIN FETCH s.concert WHERE s.concert.id = :concertId ORDER BY s.seatNumber ASC")
     List<Seat> findByConcertIdOrderBySeatNumberAsc(@Param("concertId") Long concertId);
 
+    // 콘서트 ID와 좌석 상태(AVAILABLE)로 조회하는 메서드
+    List<Seat> findByConcertIdAndStatus(Long concertId, Seat.SeatStatus status);
+
     long countByConcertId(Long concertId);
 
     void deleteByConcertId(Long concertId);
 
     // 전체 좌석 중 특정 상태(SOLD)인 좌석 수 카운트
-    // Spring Data JPA는 반환 타입을 int로 지정하면 내부적으로 long 결과를 int로 변환해줍니다.
     int countByStatus(Seat.SeatStatus status);
 
-    // '특정 콘서트'의 판매된 좌석 수만 카운트 (모니터링 시 더 정확함)
-    // 예: countByConcertIdAndStatus(1L, SeatStatus.SOLD)
+    // '특정 콘서트'의 판매된 좌석 수만 카운트
     int countByConcertIdAndStatus(Long concertId, Seat.SeatStatus status);
 
     // 비관적 락 (DB의 row lock 사용)

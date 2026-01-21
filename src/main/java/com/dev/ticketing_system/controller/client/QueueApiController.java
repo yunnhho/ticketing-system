@@ -23,7 +23,7 @@ public class QueueApiController {
     private final CaptchaService captchaService;
 
     /**
-     * [신규] 1. 캡차 생성 API
+     * 1. 캡차 생성 API
      * Return: ApiResponse<Map<String, String>>
      */
     @GetMapping("/captcha")
@@ -37,7 +37,7 @@ public class QueueApiController {
     }
 
     /**
-     * [수정] 2. 대기열 진입 (캡차 검증 포함)
+     * 2. 대기열 진입 (캡차 검증 포함)
      * Return: ApiResponse<?> (성공 시 메시지만, 실패 시 에러 메시지)
      */
     @PostMapping("/token")
@@ -64,7 +64,7 @@ public class QueueApiController {
     }
 
     /**
-     * [수정] 3. 대기 상태 조회
+     * 3. 대기 상태 조회
      * Return: ApiResponse<QueueStatusDto>
      */
     @GetMapping("/status")

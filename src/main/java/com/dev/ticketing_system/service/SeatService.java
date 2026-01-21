@@ -3,14 +3,22 @@ package com.dev.ticketing_system.service;
 import com.dev.ticketing_system.entity.Seat;
 import com.dev.ticketing_system.exception.SeatAlreadyTakenException;
 import com.dev.ticketing_system.repository.SeatRepository;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.Serializable;
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -19,8 +27,47 @@ public class SeatService {
 
     private final SeatRepository seatRepository;
     private final RedissonClient redissonClient;
+    private final RedisTemplate<String, Object> redisTemplate; // [추가] 캐싱용
 
     private static final String LOCK_KEY = "seat:lock:";
+    private static final String CACHE_KEY_PREFIX = "seats:available:concert:"; // [추가] 캐시 키 접두사
+
+    // ----------------------------------------------------------------
+    // 1. 좌석 조회 (Redis Caching 적용 - Look Aside 패턴)
+    // ----------------------------------------------------------------
+    @Transactional(readOnly = true)
+    public List<SeatSimpleDto> getAvailableSeats(Long concertId) {
+        String cacheKey = CACHE_KEY_PREFIX + concertId;
+
+        // 1. Redis 캐시 확인
+        try {
+            List<SeatSimpleDto> cachedSeats = (List<SeatSimpleDto>) redisTemplate.opsForValue().get(cacheKey);
+            if (cachedSeats != null && !cachedSeats.isEmpty()) {
+                log.info("[Cache Hit] Redis에서 좌석 정보 조회: concertId={}", concertId);
+                return cachedSeats;
+            }
+        } catch (Exception e) {
+            log.warn("Redis 캐시 조회 실패 (DB에서 조회 시도): {}", e.getMessage());
+        }
+
+        // 2. 캐시 없으면 DB 조회
+        List<Seat> seats = seatRepository.findByConcertIdAndStatus(concertId, Seat.SeatStatus.AVAILABLE);
+
+        // Entity -> DTO 변환
+        List<SeatSimpleDto> seatDtos = seats.stream()
+                .map(SeatSimpleDto::from)
+                .collect(Collectors.toList());
+
+        // 3. Redis에 저장 (TTL 1분)
+        try {
+            redisTemplate.opsForValue().set(cacheKey, seatDtos, Duration.ofMinutes(1));
+            log.info("[Cache Miss] DB 조회 후 Redis 저장 완료: concertId={}", concertId);
+        } catch (Exception e) {
+            log.warn("Redis 캐시 저장 실패: {}", e.getMessage());
+        }
+
+        return seatDtos;
+    }
 
     /**
      * 좌석 선점 (전략 패턴 적용 가능)
@@ -37,7 +84,7 @@ public class SeatService {
         }
     }
 
-    // ⭐️ 기본 전략: Redis 분산 락
+    // 기본 전략: Redis 분산 락
     @Transactional(readOnly = true)
     public void occupyWithRedisson(Long seatId, Long concertId, String userId) {
         String key = LOCK_KEY + seatId;
@@ -54,6 +101,9 @@ public class SeatService {
             redissonClient.getBucket(key + ":user").set(userId, 5, TimeUnit.MINUTES);
             log.info("Redis Lock 선점 성공: SeatId {}, UserId {}", seatId, userId);
 
+            // 좌석 상태가 변했으므로 캐시 삭제 (Cache Eviction)
+            evictCache(concertId);
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("서버 에러");
@@ -63,20 +113,20 @@ public class SeatService {
         }
     }
 
-    // ⭐️ 비교 전략 1: DB 비관적 락 (SELECT ... FOR UPDATE)
+    // 비교 전략 1: DB 비관적 락 (SELECT ... FOR UPDATE)
     @Transactional
     public void occupyWithPessimisticLock(Long seatId, Long concertId, String userId) {
-        // Repository에 findByIdWithLock 필요 (아래 Repository 참고)
-        // 실제로는 이 메서드 내에서 상태 업데이트까지 해야 락의 의미가 있음
         validateSeat(seatId, concertId);
-        // 테스트용: 로직 통과 시 로그만 남김
         log.info("DB Pessimistic Lock 선점 성공: SeatId {}", seatId);
+        // DB 락 사용 시에도 캐시 정합성을 위해 삭제 필요
+        evictCache(concertId);
     }
 
-    // ⭐️ 비교 전략 2: Java Synchronized (단일 서버용)
+    // 비교 전략 2: Java Synchronized (단일 서버용)
     public synchronized void occupyWithSynchronized(Long seatId, Long concertId, String userId) {
         validateSeat(seatId, concertId);
         log.info("Synchronized 선점 성공: SeatId {}", seatId);
+        evictCache(concertId);
     }
 
     // 공통 검증 로직
@@ -89,6 +139,31 @@ public class SeatService {
         }
         if (seat.getStatus() == Seat.SeatStatus.SOLD) {
             throw new SeatAlreadyTakenException("이미 판매된 좌석입니다.");
+        }
+    }
+
+    // 캐시 무효화 메서드
+    private void evictCache(Long concertId) {
+        String cacheKey = CACHE_KEY_PREFIX + concertId;
+        redisTemplate.delete(cacheKey);
+        log.info("[Cache Evict] 좌석 상태 변경으로 캐시 삭제: {}", cacheKey);
+    }
+
+    // 내부용 간단 DTO (따로 파일 만들 필요 없음)
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SeatSimpleDto implements Serializable {
+        private Long seatId;
+        private int seatNumber;
+        private String status;
+
+        public static SeatSimpleDto from(Seat seat) {
+            return new SeatSimpleDto(
+                    seat.getId(),
+                    seat.getSeatNumber(),
+                    seat.getStatus().name()
+            );
         }
     }
 }

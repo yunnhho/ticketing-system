@@ -14,7 +14,7 @@ spring:
     password: ${DB_ROOT_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 100 # 75로 상향
+      maximum-pool-size: 100
       minimum-idle: 10
       connection-timeout: 30000
 
@@ -49,7 +49,7 @@ spring:
   thymeleaf:
     cache: false
 
-# [추가] 그라파나 N/A 해결을 위한 필수 설정
+# 그라파나 N/A 해결을 위한 필수 설정
 management:
   endpoints:
     web:
@@ -57,7 +57,7 @@ management:
         include: prometheus, health, info # 프로메테우스용 엔드포인트 개방
   endpoint:
     prometheus:
-      enabled: true  # [필수] 프로메테우스 엔드포인트 활성화
+      enabled: true  # 프로메테우스 엔드포인트 활성화
     health:
       show-details: always
   metrics:
@@ -70,3 +70,9 @@ management:
     metrics:
       export:
         enabled: true
+  tracing:
+    sampling:
+      probability: 1.0 # 모든 요청 추적 (운영환경에선 0.1 정도로 낮춤)
+  zipkin:
+    tracing:
+      endpoint: "http://zipkin:9411/api/v2/spans"

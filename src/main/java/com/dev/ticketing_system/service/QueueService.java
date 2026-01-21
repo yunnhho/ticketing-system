@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -52,26 +54,44 @@ public class QueueService {
     /**
      * 대기열에서 상위 N명을 꺼내 입장 허용 목록으로 이동 (TTL 적용)
      */
-    public void allowEntry(Long concertId, int count) {
+    /**
+     * 대기열에서 상위 N명을 추출하여 입장 허용 (Active 상태로 전환)
+     * @return 입장 성공한 유저 ID 목록 (WebSocket 알림용)
+     */
+    public Set<String> allowEntry(Long concertId, int count) {
         String queueKey = QUEUE_KEY + concertId;
         RScoredSortedSet<String> queue = redissonClient.getScoredSortedSet(queueKey);
 
-        // 대기열 상위 count명 추출
+        // 1. 대기열 상위 count명 추출
         Collection<String> usersToAllow = queue.valueRange(0, count - 1);
+
+        // 반환할 유저 목록을 담을 Set 생성
+        Set<String> enteredUsers = new HashSet<>();
+
+        // 대기자가 없으면 빈 Set 반환
+        if (usersToAllow.isEmpty()) {
+            return enteredUsers;
+        }
 
         for (String userId : usersToAllow) {
             // 개별 유저 입장을 위한 고유 키 생성
             String userActiveKey = ACTIVE_KEY + concertId + ":" + userId;
 
-            // 1. 유저별 입장 권한 부여 및 10분 뒤 자동 삭제(TTL) 설정
-            // 이 시간이 지나면 좌석 선택 페이지 접근이 다시 차단됩니다.
+            // 2. 유저별 입장 권한 부여 및 10분 뒤 자동 삭제(TTL) 설정
+            // (이 시간이 지나면 좌석 선택 페이지 접근이 다시 차단됩니다.)
             redissonClient.getBucket(userActiveKey).set("true", Duration.ofMinutes(10));
 
-            // 2. 대기열(Queue)에서 삭제
+            // 3. 대기열(Queue)에서 삭제
             queue.remove(userId);
 
             log.info("User [{}] 입장 허용 (Concert: {}, 10분간 유효)", userId, concertId);
+
+            // 4. 결과 목록에 추가
+            enteredUsers.add(userId);
         }
+
+        // 5. 입장한 유저 목록 반환 -> Scheduler가 받아서 WebSocket 알림 전송
+        return enteredUsers;
     }
 
     /**
