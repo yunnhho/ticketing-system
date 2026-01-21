@@ -125,7 +125,7 @@ Redis 기반의 **Redisson 분산 락**을 도입했습니다.
 실제 장애 상황을 대비하기 위해 JMeter를 이용한 부하 테스트를 진행하고, Grafana와 Slack으로 모니터링 환경을 구축했습니다.
 
 ### 1. 트래픽 스파이크 관측 (Grafana)
-![Grafana Monitoring](./image/grafana_spike.png)
+![Grafana Monitoring](./image/grafana_queue_spike.png)
 * **상황**: JMeter로 순간적인 트래픽 폭주를 발생시켰을 때, `custom_queue_size` 메트릭이 급격히 치솟는 것을 실시간으로 확인했습니다.
 * **분석**: 대기열 시스템이 없었다면 이 요청들이 모두 DB를 강타했겠지만, Redis가 앞단에서 트래픽을 모두 흡수하여 버퍼링하고 있음을 보여줍니다.
 
