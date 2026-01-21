@@ -104,7 +104,7 @@
         // 시각적 피드백 (파란색으로 변경)
         btn.classList.add('selected');
 
-        fetch(`/api/seats/${seatId}/occupy?userId=${userId}`, { method: 'POST' })
+        fetch(`/api/seats/${seatId}/occupy?userId=${userId}&concertId=${concertId}`, { method: 'POST' })
         .then(res => {
             if (res.ok) {
                 // 성공 -> 결제 페이지 이동

@@ -18,7 +18,7 @@ public class PaymentConsumer {
         log.info(">>> [Consumer] payment-completed 수신: {}", message);
 
         /*
-        // 🔥 [Kafka DLQ 테스트용] 강제 에러 발생 코드
+         🔥 [Kafka DLQ 테스트용] 강제 에러 발생 코드
         if (true) {
             throw new RuntimeException("🚨 결제 시스템 치명적 오류 발생! (테스트)");
         }
