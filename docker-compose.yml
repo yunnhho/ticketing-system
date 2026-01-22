@@ -10,11 +10,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate # operation
+      #SPRING_JPA_HIBERNATE_DDL_AUTO: update # local
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
     volumes:
-      - ticketing_db_data:/var/lib/mysql # 로컬 경로(./) 대신 이름 사용
+      - ticketing_db_data:/var/lib/mysql
     networks:
       - ticketing-network
 

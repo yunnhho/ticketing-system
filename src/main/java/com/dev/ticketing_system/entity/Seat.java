@@ -23,25 +23,8 @@ public class Seat {
     @Enumerated(EnumType.STRING)
     private SeatStatus status;
 
-    @Version // 낙관적 락을 위한 버전 관리 (데이터 정합성 핵심)
+    @Version
     private Long version;
-
-    @Transient
-    private String temporaryStatus;
-
-    public void setTemporaryStatus(String temporaryStatus) {
-        this.temporaryStatus = temporaryStatus;
-    }
-
-    public String getDisplayStatus() {
-        if (this.status == SeatStatus.SOLD) {
-            return "SOLD";
-        }
-        if ("OCCUPIED".equals(this.temporaryStatus)) {
-            return "OCCUPIED";
-        }
-        return "AVAILABLE";
-    }
 
     public Seat(Concert concert, int seatNumber) {
         this.concert = concert;

@@ -17,11 +17,11 @@
     <div class="seat-grid mb-5">
         <div th:each="seat : ${seats}"
              th:id="'seat-' + ${seat.id}"
-             th:classappend="${seat.getDisplayStatus() == 'AVAILABLE' ? '' :
-                             (seat.getDisplayStatus() == 'OCCUPIED' ? 'sold' : 'sold')}"
+             th:classappend="${seat.displayStatus == 'AVAILABLE' ? '' :
+                             (seat.displayStatus == 'OCCUPIED' ? 'sold' : 'sold')}"
              class="seat-item"
              th:text="${seat.seatNumber}"
-             th:onclick="${seat.getDisplayStatus() == 'AVAILABLE'} ? 'occupySeat(' + ${seat.id} + ')' : ''">
+             th:onclick="${seat.displayStatus == 'AVAILABLE'} ? 'occupySeat(' + ${seat.id} + ')' : ''">
         </div>
     </div>
 
@@ -45,96 +45,70 @@
 <div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3">
     <div id="liveToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
-            <div class="toast-body" id="toast-body">
-                메시지 내용
-            </div>
+            <div class="toast-body" id="toast-body"></div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
     </div>
 </div>
 
 <script th:inline="javascript">
-    // 1. 변수 선언부
     const userId = [[${userId}]];
     const concertId = [[${concertId}]];
-
-    // isProcessing을 맨 위에서 선언하여 초기화 오류 방지
     let isProcessing = false;
-
-    // Toast 초기화 (안전하게 처리)
     let toast = null;
+
     const toastEl = document.getElementById('liveToast');
     if (toastEl && typeof bootstrap !== 'undefined') {
         toast = new bootstrap.Toast(toastEl);
     }
 
-    // 2. 페이지 로드 시 이벤트 설정
     window.onload = function() {
-        // 뒤로 가기 감지 및 새로고침
         window.onpageshow = function(event) {
             if (event.persisted) {
-                // 뒤로 가기로 왔을 때 락 해제 및 새로고침
                 isProcessing = false;
                 window.location.reload();
             }
         };
-
-        // URL 파라미터 에러 체크
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('error') === 'taken') showToast("⚠️ 이미 선점된 좌석입니다.");
         if (urlParams.get('error') === 'timeout') showToast("⏰ 결제 시간이 만료되었습니다.");
     };
 
-    // 3. 좌석 선점 로직
     function occupySeat(seatId) {
-        // 디버깅용 로그
-        console.log("Clicked seat:", seatId, "Processing:", isProcessing);
-
-        // 중복 클릭 방지 (광클 방지)
         if (isProcessing) return;
-
         const btn = document.getElementById('seat-' + seatId);
-
-        // 이미 팔린 좌석이나 선택된 좌석이면 무시
         if (btn.classList.contains('sold') || btn.classList.contains('selected')) return;
 
-        // 락 걸기
         isProcessing = true;
-
-        // 시각적 피드백 (파란색으로 변경)
         btn.classList.add('selected');
 
         fetch(`/api/seats/${seatId}/occupy?userId=${userId}&concertId=${concertId}`, { method: 'POST' })
         .then(res => {
             if (res.ok) {
-                // 성공 -> 결제 페이지 이동
                 window.location.href = `/concerts/${concertId}/payments?seatId=${seatId}&userId=${userId}&concertId=${concertId}`;
             } else if (res.status === 409) {
                 showToast("⚠️ 다른 사용자가 방금 선택했습니다.");
-                // 실패 처리: 회색 변경 및 락 해제
                 btn.classList.remove('selected');
                 btn.classList.add('sold');
-                btn.removeAttribute("onclick"); // 클릭 이벤트 제거
-                isProcessing = false; // 락 풀기
+                btn.removeAttribute("onclick");
+                isProcessing = false;
             } else {
                 return res.text().then(text => { throw new Error(text) });
             }
         })
         .catch(err => {
             console.error(err);
-            showToast("좌석 선택에 실패했습니다. (새로고침 추천)");
+            showToast("오류가 발생했습니다.");
             btn.classList.remove('selected');
-            isProcessing = false; // 락 풀기
+            isProcessing = false;
         });
     }
 
-    // 4. 토스트 메시지 함수 (안전장치 추가)
     function showToast(msg) {
         if (toast) {
             document.getElementById('toast-body').innerText = msg;
             toast.show();
         } else {
-            // Bootstrap 로드 실패 시 alert로 대체
             alert(msg);
         }
     }

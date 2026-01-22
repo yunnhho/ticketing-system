@@ -46,7 +46,7 @@ public class AdminConcertController {
         return "redirect:/admin/concerts";
     }
 
-    // 상세 조회 (Read Detail)
+    // 상세 조회
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id, Model model) {
         Concert concert = concertRepository.findById(id).orElseThrow();
@@ -55,18 +55,17 @@ public class AdminConcertController {
         return "admin/concert/detail";
     }
 
-    // 수정 폼 (Update Form)
+    // 수정 폼
     @GetMapping("/{id}/edit")
     public String editForm(@PathVariable Long id, Model model) {
         model.addAttribute("concert", concertRepository.findById(id).orElseThrow());
         return "admin/concert/edit";
     }
 
-    // 수정 실행 (Update Action)
+    // 수정 실행
     @PostMapping("/{id}/edit")
     public String update(@PathVariable Long id, @ModelAttribute Concert concertData) {
         Concert concert = concertRepository.findById(id).orElseThrow();
-        // 엔티티의 update 메서드 호출
         concert.update(concertData.getTitle(), concertData.getVenue(), concertData.getTotalSeats());
         concertRepository.save(concert);
         return "redirect:/admin/concerts/" + id;
@@ -74,10 +73,9 @@ public class AdminConcertController {
 
     // 삭제 실행
     @PostMapping("/{id}/delete")
-    @Transactional // 여러 삭제 작업을 하나의 트랜잭션으로 묶음
+    @Transactional
     public String delete(@PathVariable Long id) {
-        seatRepository.deleteByConcertId(id); // 좌석 먼저 삭제
-        concertRepository.deleteById(id);    // 공연 삭제
+        concertService.deleteConcert(id);
         return "redirect:/admin/concerts";
     }
 }

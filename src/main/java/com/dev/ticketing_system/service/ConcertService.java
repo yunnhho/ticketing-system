@@ -52,4 +52,10 @@ public class ConcertService {
         }
         seatRepository.saveAll(seats);
     }
+    @Transactional
+    public void deleteConcert(Long concertId) {
+        seatRepository.deleteByConcertId(concertId);
+        concertRepository.deleteById(concertId);
+    }
+
 }

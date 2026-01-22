@@ -45,31 +45,32 @@ public class PaymentService {
             RLock lock = redissonClient.getLock(lockKey);
             RBucket<String> userBucket = redissonClient.getBucket(userKey);
 
-            // [디버깅 로그] Redis 상태 확인 (이 로그를 꼭 확인하세요!)
-            boolean isLocked = lock.isLocked();
-            String ownerId = userBucket.get();
-
-            // 혹시 JSON 직렬화 때문에 따옴표가 붙었을 수 있으므로 제거 처리
+            /*
+            혹시 JSON 직렬화 때문에 따옴표가 붙었을 수 있으므로 제거 처리
             if (ownerId != null) {
                 ownerId = ownerId.replace("\"", "").trim();
             }
 
+            [디버깅 로그] Redis 상태 확인 (이 로그를 꼭 확인하세요!)
             log.info("🔍 [결제 검증] seatId={}, userId(요청)={}, isLocked={}, ownerId(Redis)={}",
                     seatId, userId, isLocked, ownerId);
+            */
 
-            // A. 락 존재 여부 확인
-            if (!isLocked) {
-                log.warn("❌ 결제 실패: 락이 존재하지 않음 (시간 초과 또는 선점 안됨)");
-                throw new SeatAlreadyTakenException("결제 시간이 초과되었거나 선점 정보가 없습니다.");
+            // 1. 락 존재 여부 확인
+            if (!lock.isLocked()) {
+                throw new SeatAlreadyTakenException("결제 시간이 초과되어 좌석 선점이 해제되었습니다.");
             }
 
-            // B. 락 주인 확인 (내가 맞는지)
+            // 2. Redis에 저장된 소유자 ID 가져오기
+            String ownerId = userBucket.get();
+
+            // 3. 소유자 검증
             if (ownerId == null || !ownerId.equals(userId)) {
-                log.warn("❌ 결제 실패: 락 주인 불일치. 요청자={}, 주인={}", userId, ownerId);
-                throw new SeatAlreadyTakenException("좌석 점유 정보가 일치하지 않습니다. (다른 사람이 선점함)");
+                log.warn("락 소유자 불일치: 요청={}, 실제={}", userId, ownerId);
+                throw new SeatAlreadyTakenException("좌석 점유 권한이 없습니다. (다른 유저가 선점 중)");
             }
 
-            // ⭐️ 3. DB 상태 검증
+            // 4. DB 상태 검증
             Seat seat = seatRepository.findById(seatId)
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 좌석입니다."));
 
@@ -77,16 +78,15 @@ public class PaymentService {
                 throw new SeatAlreadyTakenException("이미 결제 완료된 좌석입니다.");
             }
 
-            // ⭐️ 4. Kafka 발행
+            // 5. Kafka 발행
             kafkaTemplate.send(TOPIC, seatId + ":" + userId);
 
-            // ⭐️ 5. 멱등성 완료 처리
+            // 6. 멱등성 완료 처리
             idempotencyBucket.set("COMPLETED", 10, TimeUnit.MINUTES);
 
             log.info("✅ Kafka 결제 이벤트 발행 완료 (seatId={}, userId={})", seatId, userId);
 
         } catch (Exception e) {
-            // 예외 발생 시 멱등성 키 삭제 (재시도 가능하도록)
             idempotencyBucket.delete();
             throw e;
         }
