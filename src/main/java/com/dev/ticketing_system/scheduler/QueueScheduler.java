@@ -22,26 +22,17 @@ public class QueueScheduler {
     private final ConcertRepository concertRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    /**
-     * 3초마다 대기열에서 유저를 추출하여 입장 허용 상태로 변경
-     */
     @Scheduled(fixedDelay = 3000)
     public void processQueue() {
         List<Concert> concerts = concertRepository.findAll();
-
         if (concerts.isEmpty()) return;
 
         for (Concert concert : concerts) {
-            //  allowEntry가 "입장된 유저들의 토큰(또는 ID) 목록"을 반환해야 함
             Set<String> enteredTokens = queueService.allowEntry(concert.getId(), 100);
 
             if (enteredTokens != null && !enteredTokens.isEmpty()) {
-                for (String token : enteredTokens) {
-                    String userId = token;
-
+                for (String userId : enteredTokens) {
                     log.info("WebSocket 알림 발송: user={}", userId);
-
-                    // 해당 유저에게만 {"pass": true} 메시지 전송
                     messagingTemplate.convertAndSend("/topic/queue/" + userId, Map.of("pass", true));
                 }
             }

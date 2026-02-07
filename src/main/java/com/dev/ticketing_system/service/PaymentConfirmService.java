@@ -33,22 +33,18 @@ public class PaymentConfirmService {
             Seat seat = seatRepository.findById(seatId)
                     .orElseThrow(() -> new IllegalStateException("Seat not found"));
 
-            // ✅ 멱등 처리 (이미 SOLD면 그냥 종료)
             if (seat.getStatus() == Seat.SeatStatus.SOLD) {
                 log.info(">>> [Consumer] 이미 SOLD 처리된 좌석 - skip (seatId={})", seatId);
                 return;
             }
 
             seat.markAsSold();
-            // save() 불필요 (Dirty Checking)
             log.info(">>> [Consumer] 좌석 SOLD 처리 완료 (DB)");
 
         } catch (OptimisticLockingFailureException e) {
-            // ⭐ 정상적인 중복 처리 상황
             log.warn(">>> [Consumer] Optimistic Lock 충돌 - 이미 처리된 이벤트 (seatId={})", seatId);
 
         } finally {
-            // 🔑 DB 트랜잭션 종료 이후 락 해제
             try {
                 userBucket.delete();
                 if (lock.isLocked()) {

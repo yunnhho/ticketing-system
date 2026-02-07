@@ -26,6 +26,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.4-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![JPA](https://img.shields.io/badge/Spring_Data_JPA-gray?style=for-the-badge&logo=spring&logoColor=white)
+![Thymeleaf](https://img.shields.io/badge/Thymeleaf-Template_Engine-005F0F?style=for-the-badge&logo=thymeleaf&logoColor=white)
 
 ### Middleware & Infrastructure
 ![Redis](https://img.shields.io/badge/Redis-Sorted_Set_%26_Pub%2FSub-DC382D?style=for-the-badge&logo=redis&logoColor=white)
@@ -82,9 +83,23 @@ sequenceDiagram
         Server->>DB: 최종 상태 변경 (SOLD) & 로그 저장
     end
 ```
+
 ---
 
-## 4. 핵심 기술적 도전과 해결 과정 (Challenges & Solutions)
+## 4. 프로젝트 구조 및 테스트 (Structure & Testing)
+
+### Package Structure
+*   `com.dev.ticketing_system`: 메인 패키지
+*   `com.dev.ticketing_system.service`: 핵심 비즈니스 로직 (Queue, Seat, Payment)
+*   `com.dev.ticketing_system.config`: Redis, Kafka, Web 설정
+
+### Testing
+*   **Unit Testing**: JUnit 5와 Mockito를 사용하여 `SeatService`(분산 락), `QueueService`(대기열 로직), `PaymentService`(결제 및 멱등성) 등의 핵심 비즈니스 로직을 검증합니다. 외부 인프라(DB, Redis, Kafka) 연결 없이도 Mocking을 통해 빠르고 독립적인 테스트가 가능하도록 구성되었습니다.
+*   **Load Testing**: JMeter를 사용하여 대규모 트래픽 상황을 시뮬레이션합니다.
+
+---
+
+## 5. 핵심 기술적 도전과 해결 과정 (Challenges & Solutions)
 
 ### ① 서버가 터지는 것을 막아라: Redis 대기열 시스템
 **[예상 문제 상황]**

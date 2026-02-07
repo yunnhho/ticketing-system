@@ -26,6 +26,13 @@ public class Seat {
     @Version
     private Long version;
 
+    @Transient
+    private String temporaryStatus;
+
+    public void setTemporaryStatus(String temporaryStatus) {
+        this.temporaryStatus = temporaryStatus;
+    }
+
     public Seat(Concert concert, int seatNumber) {
         this.concert = concert;
         this.seatNumber = seatNumber;

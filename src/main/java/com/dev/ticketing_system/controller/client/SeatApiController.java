@@ -20,12 +20,7 @@ public class SeatApiController {
                                  @RequestParam Long concertId,
                                  @RequestParam String userId,
                                  @RequestParam(defaultValue = "REDIS") String lockType) {
-        // 예외가 발생하면 GlobalExceptionHandler가 409 Conflict를 리턴함
-        // 따라서 여기서는 성공 로직만 작성하면 됨
         seatService.occupySeat(seatId, concertId, userId, lockType);
-
-        return ResponseEntity.ok(
-                ApiResponse.success(Collections.singletonMap("success", true))
-        );
+        return ResponseEntity.ok(ApiResponse.success(Collections.singletonMap("success", true)));
     }
 }

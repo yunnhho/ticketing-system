@@ -23,7 +23,6 @@ public class AdminDashboardController {
 
     @GetMapping
     public String dashboard(Model model, @RequestParam(required = false) Long concertId) {
-        // 1. 드롭다운용 전체 목록 조회
         List<Concert> concerts = concertRepository.findAll();
         model.addAttribute("concerts", concerts);
 
@@ -31,16 +30,14 @@ public class AdminDashboardController {
             return "admin/dashboard";
         }
 
-        // 2. 타겟 콘서트 설정
         Concert targetConcert = (concertId == null)
                 ? concerts.get(0)
                 : concertRepository.findById(concertId).orElse(concerts.get(0));
 
-        // 3. 서비스 호출하여 DTO 받아오기
         ConcertDashboardDto dashboardDto = adminDashboardService.getDashboardStats(targetConcert);
 
-        model.addAttribute("selectedConcert", targetConcert); // 드롭다운 표시용 유지
-        model.addAttribute("stats", dashboardDto);           // 통계 데이터 DTO
+        model.addAttribute("selectedConcert", targetConcert);
+        model.addAttribute("stats", dashboardDto);
 
         return "admin/dashboard";
     }

@@ -31,14 +31,10 @@ public class SeatService {
     private static final String LOCK_KEY = "seat:lock:";
     private static final String CACHE_KEY_PREFIX = "seats:concert:";
 
-    /**
-     * 1. 좌석 조회 (DTO의 isLocked 활용)
-     */
     @Transactional(readOnly = true)
     public List<SeatResponseDto> getAvailableSeats(Long concertId) {
         String cacheKey = CACHE_KEY_PREFIX + concertId;
 
-        // A. Redis 캐시 확인
         try {
             List<Object> cachedData = redisTemplate.opsForHash().values(cacheKey);
             if (!cachedData.isEmpty()) {
@@ -51,13 +47,11 @@ public class SeatService {
             log.warn("Redis 캐시 조회 실패: {}", e.getMessage());
         }
 
-        // B. DB 조회
         List<Seat> seats = seatRepository.findByConcertIdOrderBySeatNumberAsc(concertId);
         List<SeatResponseDto> seatDtos = seats.stream()
                 .map(SeatResponseDto::from)
                 .collect(Collectors.toList());
 
-        // C. Redis 저장 (Hash)
         Map<String, SeatResponseDto> seatMap = seatDtos.stream()
                 .collect(Collectors.toMap(
                         dto -> String.valueOf(dto.getId()),
@@ -70,9 +64,6 @@ public class SeatService {
         return seatDtos;
     }
 
-    /**
-     * 2. 캐시 내 특정 좌석 잠금 상태 업데이트 (boolean 변경)
-     */
     private void updateSeatLockStatusInCache(Long concertId, Long seatId, boolean locked) {
         String cacheKey = CACHE_KEY_PREFIX + concertId;
         String hashKey = String.valueOf(seatId);
@@ -81,18 +72,13 @@ public class SeatService {
             SeatResponseDto seatDto = (SeatResponseDto) redisTemplate.opsForHash().get(cacheKey, hashKey);
 
             if (seatDto != null) {
-                // ✅ DTO의 isLocked 필드만 변경
                 seatDto.setLocked(locked);
-
                 redisTemplate.opsForHash().put(cacheKey, hashKey, seatDto);
                 log.info("[Cache Update] 좌석 락 변경: seatId={}, locked={}", seatId, locked);
             }
         }
     }
 
-    /**
-     * 좌석 선점 (Redisson)
-     */
     public void occupySeat(Long seatId, Long concertId, String userId, String lockType) {
         occupyWithRedisson(seatId, concertId, userId);
     }
@@ -104,18 +90,13 @@ public class SeatService {
         boolean isLocked = false;
 
         try {
-            // 락 획득 (5분 점유)
             isLocked = lock.tryLock(0, 5, TimeUnit.MINUTES);
             if (!isLocked) {
                 throw new SeatAlreadyTakenException("이미 선택된 좌석입니다.");
             }
 
             validateSeat(seatId, concertId);
-
-            // Redis 점유자 정보 저장
             redissonClient.getBucket(key + ":user").set(userId, 5, TimeUnit.MINUTES);
-
-            // ✅ 캐시 업데이트: isLocked = true 로 변경
             updateSeatLockStatusInCache(concertId, seatId, true);
 
         } catch (InterruptedException e) {
