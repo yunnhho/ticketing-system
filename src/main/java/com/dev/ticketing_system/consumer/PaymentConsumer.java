@@ -17,22 +17,14 @@ public class PaymentConsumer {
     public void consume(String message) {
         log.info(">>> [Consumer] payment-completed 수신: {}", message);
 
-        /*
-         🔥 [Kafka DLQ 테스트용] 강제 에러 발생 코드
-        if (true) {
-            throw new RuntimeException("🚨 결제 시스템 치명적 오류 발생! (테스트)");
+        String[] data = message.split(":");
+        if (data.length != 2) {
+            throw new IllegalArgumentException("Invalid payment message format: " + message);
         }
-        */
-        try {
-            String[] data = message.split(":");
-            Long seatId = Long.parseLong(data[0]);
-            String userId = data[1];
 
-            paymentConfirmService.confirmPayment(seatId, userId);
+        Long seatId = Long.parseLong(data[0]);
+        String userId = data[1];
 
-        } catch (Exception e) {
-            // Kafka 재처리를 막기 위해 예외를 삼킴 (멱등 구조)
-            log.error(">>> [Consumer] 결제 처리 중 오류 (무시 처리): {}", e.getMessage(), e);
-        }
+        paymentConfirmService.confirmPayment(seatId, userId);
     }
 }
